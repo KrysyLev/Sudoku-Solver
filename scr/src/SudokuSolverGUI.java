@@ -1,176 +1,154 @@
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.awt.event.*;
+import java.util.*;
+import java.util.List;
+import java.util.Timer;
 
-public class SudokuSolverGUI extends JFrame{
-    //Initializing the variables and the GUI elements
-    private static final int GRID_SIZE = 9;
-    private JTextField[][] cells = new JTextField[GRID_SIZE][GRID_SIZE];
-    private int[][] sudokuArray = new int[GRID_SIZE][GRID_SIZE];
-    private int [][] solutionArray = new int[GRID_SIZE][GRID_SIZE];
+public class SudokuSolverGUI extends JFrame {
+    private int gridSize;
+    private int[][] board;
+    private JTextField[][] cells;
+    private SudokuSolver solver;
+    private DifficultyAnalyzer analyzer;
+    private PuzzleGenerator generator;
+    private UserProfile userProfile;
+    private Timer timer;
+    private long startTime;
 
-    public SudokuSolverGUI() {
-        //SETTING TITLE AND FRAME
-        setTitle("Sudoku Game & Solver");
-        setSize(600, 700);
+    public SudokuSolverGUI(int gridSize, String username) {
+        this.gridSize = gridSize;
+        this.board = new int[gridSize][gridSize];
+        this.cells = new JTextField[gridSize][gridSize];
+        this.solver = new SudokuSolver(gridSize);
+        this.analyzer = new DifficultyAnalyzer(gridSize);
+        this.generator = new PuzzleGenerator(gridSize);
+        this.userProfile = new UserProfile(username);
+
+        setTitle("Sudoku Solver");
+        setSize(600, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLayout(new BorderLayout());
+        setLayout(new GridLayout(gridSize + 1, gridSize));
 
-        //SETTING THE DEFAULT BOARD
-        JPanel gridPanel = new JPanel(new GridLayout(GRID_SIZE, GRID_SIZE));
-        for (int i = 0; i < GRID_SIZE; i++){
-            for(int j = 0; j < GRID_SIZE; j++){
+        for (int i = 0; i < gridSize; i++) {
+            for (int j = 0; j < gridSize; j++) {
                 cells[i][j] = new JTextField();
                 cells[i][j].setHorizontalAlignment(JTextField.CENTER);
-                gridPanel.add(cells[i][j]);
+                cells[i][j].setFont(new Font("Arial", Font.BOLD, 20));
+                add(cells[i][j]);
             }
         }
 
-        // Setting the difficulties scroll down box
-        String[] difficulties = {"Easy", "Medium", "Hard"};
-        JComboBox<String> difficultyCombox = new JComboBox<>(difficulties);
-
-        //Create a new Solve button
         JButton solveButton = new JButton("Solve");
-        solveButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                readInput();
-                if (SudokuSolverRandom.solveSudokuBoard(sudokuArray)){
-                    displayResult(sudokuArray);
-                }
-                else JOptionPane.showMessageDialog(null, "Unsolvable board!");
-            }
-        });
+        solveButton.addActionListener(e -> solvePuzzle());
+        add(solveButton);
 
-        //Create a new Generate Puzzle button
-        JButton generateButton = new JButton("Generate Puzzle");
-        generateButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                String selectedDiff = (String) difficultyCombox.getSelectedItem();
-                int cellsToRemove = getCellsToRemoveByificulty(selectedDiff);
-                sudokuArray = SudokuSolverRandom.generateRandomSudokuPuzzle(cellsToRemove);
-                copyArray(sudokuArray, solutionArray);
-                SudokuSolverRandom.solveSudokuBoard(solutionArray);
-                displayResult(sudokuArray);
-            }
-        });
+        JButton generateButton = new JButton("Generate");
+        generateButton.addActionListener(e -> generatePuzzle());
+        add(generateButton);
 
-        //Create a new Check button
+        JButton hintButton = new JButton("Hint");
+        hintButton.addActionListener(e -> provideHint());
+        add(hintButton);
 
-        JButton checkButton = new JButton("Check Solution");
-        checkButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                readInput();
-                if (isSolutionCorrect()) {
-                    JOptionPane.showMessageDialog(null, "Correct solution!!!");
-                }
-                else {
-                    JOptionPane.showMessageDialog(null, "Incorrect solution. Keep trying !!!");
-                }
-            }
-        });
+        JButton difficultyButton = new JButton("Difficulty");
+        difficultyButton.addActionListener(e -> analyzeDifficulty());
+        add(difficultyButton);
 
-        //Adding the elements into JPanel
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.add(new JLabel("Difficulty:"));
-        buttonPanel.add(difficultyCombox);
-        buttonPanel.add(generateButton);
-        buttonPanel.add(solveButton);
-        buttonPanel.add(checkButton);
+        JButton multiplayerButton = new JButton("Multiplayer");
+        multiplayerButton.addActionListener(e -> startMultiplayer());
+        add(multiplayerButton);
 
-        add(gridPanel, BorderLayout.CENTER);
-        add(buttonPanel, BorderLayout.SOUTH);
-
+        JButton profileButton = new JButton("Profile");
+        profileButton.addActionListener(e -> viewProfile());
+        add(profileButton);
     }
 
-    //Choosing level method
-    private int getCellsToRemoveByificulty(String difficulty){
-        switch (difficulty){
-            case "Easy":
-                return 30;
-            case "Medium":
-                return 40;
-            case "Hard":
-                return 50;
-            default:
-                return 35;
-        }
-    }
-
-    //Read input from user method
-    private void readInput(){
-        for (int i = 0; i < GRID_SIZE; i++){
-            for (int j = 0; j < GRID_SIZE; j++){
+    private void readInput() {
+        for (int i = 0; i < gridSize; i++) {
+            for (int j = 0; j < gridSize; j++) {
                 String text = cells[i][j].getText();
-                if (text.isEmpty()){
-                    sudokuArray[i][j] = 0;
-                }
-                else {
+                if (text.isEmpty()) {
+                    board[i][j] = 0;
+                } else {
                     try {
-                        sudokuArray[i][j] = Integer.parseInt(text);
-                    } catch (NumberFormatException e){
-                        sudokuArray[i][j] = 0;
+                        board[i][j] = Integer.parseInt(text);
+                    } catch (NumberFormatException e) {
+                        board[i][j] = 0;
                     }
                 }
             }
         }
     }
 
-    //Display Result in the GUI
-    private void displayResult(int[][] array){
-        for (int i = 0; i < GRID_SIZE; i++){
-            for (int j = 0; j < GRID_SIZE; j++){
-                if (array[i][j] == 0){
-                    cells[i][j].setText("");
-                }
-                else {
-                    cells[i][j].setText(String.valueOf(array[i][j]));
+    private void displayBoard(int[][] board) {
+        for (int i = 0; i < gridSize; i++) {
+            for (int j = 0; j < gridSize; j++) {
+                cells[i][j].setText(board[i][j] == 0 ? "" : String.valueOf(board[i][j]));
+            }
+        }
+    }
+
+    private void solvePuzzle() {
+        readInput();
+        long startTime = System.currentTimeMillis();
+        if (solver.solveSudoku(board)) {
+            long endTime = System.currentTimeMillis();
+            displayBoard(board);
+            userProfile.saveStatistics(gridSize, endTime - startTime, 100.0);
+            JOptionPane.showMessageDialog(this, "Puzzle solved!");
+        } else {
+            JOptionPane.showMessageDialog(this, "No solution exists!");
+        }
+    }
+
+    private void generatePuzzle() {
+        board = generator.generatePuzzle();
+        displayBoard(board);
+    }
+
+    private void provideHint() {
+        readInput();
+        int[][] copyBoard = new int[gridSize][gridSize];
+        for (int i = 0; i < gridSize; i++) {
+            System.arraycopy(board[i], 0, copyBoard[i], 0, gridSize);
+        }
+
+        solver.solveSudoku(copyBoard);
+        for (int i = 0; i < gridSize; i++) {
+            for (int j = 0; j < gridSize; j++) {
+                if (board[i][j] == 0 && copyBoard[i][j] != 0) {
+                    cells[i][j].setBackground(Color.YELLOW);
+                    cells[i][j].setText(String.valueOf(copyBoard[i][j]));
+                    return;
                 }
             }
         }
     }
 
-    //Checking if the solution is correct or not ?
-    private boolean isSolutionCorrect(){
-        for (int i = 0; i < GRID_SIZE; i++){
-            for (int j = 0; j < GRID_SIZE; j++){
-                if (cells[i][j].getText().isEmpty() || Integer.parseInt(cells[i][j].getText()) != solutionArray[i][j]){
-                    return false;
-                }
-            }
-        }
-        return true;
+    private void analyzeDifficulty() {
+        readInput();
+        String difficulty = analyzer.analyzeDifficulty(board);
+        JOptionPane.showMessageDialog(this, "Puzzle difficulty: " + difficulty);
     }
 
-    //Copy array method
-    private void copyArray(int [][] source, int [][] destination){
-        for (int i = 0; i < GRID_SIZE; i++){
-            System.arraycopy(source[i], 0, destination[i], 0, GRID_SIZE);
-        }
+    private void startMultiplayer() {
+        // Implement multiplayer logic
     }
 
-    //Main
+    private void viewProfile() {
+        List<Map<String, Object>> stats = userProfile.getStatistics();
+        StringBuilder statsMessage = new StringBuilder("User Profile Statistics:\n");
+        for (Map<String, Object> stat : stats) {
+            statsMessage.append("Puzzle Size: ").append(stat.get("puzzleSize"))
+                    .append(", Solving Time: ").append(stat.get("solvingTime"))
+                    .append(" ms, Accuracy: ").append(stat.get("accuracy"))
+                    .append("%\n");
+        }
+        JOptionPane.showMessageDialog(this, statsMessage.toString());
+    }
+
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                new SudokuSolverGUI().setVisible(true);
-            }
-        });
+        SwingUtilities.invokeLater(() -> new SudokuSolverGUI(9, "defaultUser").setVisible(true));
     }
 }
-
-
-
-
-
-
-
-
-
-
-
