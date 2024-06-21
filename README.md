@@ -18,7 +18,7 @@ This project implements a Sudoku Solver and Game application in Java. It allows 
 2. Open the project in your preferred Java IDE (e.g., IntelliJ IDEA, Eclipse).
 
 ## Usage
-1. Run the `SudokuSolverGUI.java` file to start the application.
+1. Run the `GUI.SudokuSolverGUI.java` file to start the application.
 2. Use the GUI to generate new Sudoku puzzles, input solutions, and check correctness.
 3. Choose the difficulty level (Easy, Medium, Hard) for generating puzzles.
 4. Input numbers into the Sudoku grid by clicking on cells and typing numbers.
